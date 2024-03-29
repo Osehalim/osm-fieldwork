@@ -28,6 +28,9 @@ import sys
 import threading
 from pathlib import Path
 from typing import Union
+from io import BytesIO
+import json
+from pathlib import Path
 
 import geojson
 import mercantile
@@ -443,6 +446,17 @@ def create_basemap_file(
         f"xy={xy} | "
         f"tms={tms}"
     )
+    
+    # Check for BytesIO instance and load GeoJSON if necessary
+    if isinstance(boundary, BytesIO):
+        # Read bytes and decode to string, then load as JSON
+        geojson_str = boundary.getvalue().decode('utf-8')
+        boundary = json.loads(geojson_str)  # boundary is now a dictionary representing GeoJSON
+        log.debug("Boundary set from BytesIO object containing GeoJSON data.")
+    elif not boundary:
+        err = "You must specify a boundary! (file, bbox, or BytesIO object containing GeoJSON)"
+        log.error(err)
+        raise ValueError(err)    
 
     # Validation
     if not boundary:

@@ -22,6 +22,8 @@
 import logging
 import os
 import shutil
+from io import BytesIO
+import json
 
 from osm_fieldwork.basemapper import BaseMapper
 from osm_fieldwork.sqlite import DataFile
@@ -29,40 +31,44 @@ from osm_fieldwork.sqlite import DataFile
 log = logging.getLogger(__name__)
 
 rootdir = os.path.dirname(os.path.abspath(__file__))
-boundary = f"{rootdir}/testdata/Rollinsville.geojson"
+geojson_file_path = f"{rootdir}/testdata/Rollinsville.geojson"
 outfile = f"{rootdir}/testdata/rollinsville.mbtiles"
 base = "./tiles"
-# boundary = open(infile, "r")
-# poly = geojson.load(boundary)
-# if "features" in poly:
-#    geometry = shape(poly["features"][0]["geometry"])
-# elif "geometry" in poly:
-#    geometry = shape(poly["geometry"])
-# else:
-#    geometry = shape(poly)
+
+
+def load_geojson_as_bytesio(geojson_path):
+    """Load GeoJSON file and return it as a BytesIO object."""
+    with open(geojson_path, 'r') as file:
+        geojson_data = json.load(file)
+    return BytesIO(json.dumps(geojson_data).encode('utf-8'))
 
 
 def test_create():
-    """See if the file got loaded."""
+    """Test basemap creation with GeoJSON data passed as BytesIO."""
     hits = 0
-    basemap = BaseMapper(boundary, base, "topo", False)
+    boundary_bytesio = load_geojson_as_bytesio(geojson_file_path)
+    basemap = BaseMapper(boundary_bytesio, base, "topo", False)
     tiles = list()
     for level in [8, 9, 10, 11, 12]:
         basemap.getTiles(level)
         tiles += basemap.tiles
 
+    # Adjust the conditions according to the expected outcomes
     if len(tiles) == 5:
         hits += 1
 
+    # Use relevant conditions for x, y values based on your test GeoJSON
     if tiles[0].x == 52 and tiles[1].y == 193 and tiles[2].x == 211:
         hits += 1
 
     outf = DataFile(outfile, basemap.getFormat())
     outf.writeTiles(tiles, base)
 
+    # Clean up test output
     os.remove(outfile)
     shutil.rmtree(base)
 
+    # Ensure the test hits the expected conditions
     assert hits == 2
 
 
